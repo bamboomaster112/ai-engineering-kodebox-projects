@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import asdict, dataclass
 
 import httpx
@@ -30,14 +31,33 @@ class SearchError(RuntimeError):
     pass
 
 
+# ddgs queries several engines; any one of them can rate-limit or come back empty, so retry with others.
+DDGS_ATTEMPTS = ("auto", "duckduckgo,brave,mojeek", "bing,yahoo,wikipedia")
+
+
 def _ddgs(query: str, max_results: int) -> list[SearchResult]:
     from ddgs import DDGS
+    from ddgs.exceptions import DDGSException
 
-    try:
-        rows = DDGS(timeout=15).text(query, max_results=max_results) or []
-    except Exception as err:  # noqa: BLE001 - ddgs raises several exception types
-        raise SearchError(f"DuckDuckGo search failed: {err}") from err
-    return [SearchResult(r.get("title", ""), r.get("href", ""), r.get("body", "")) for r in rows if r.get("href")]
+    last_error = ""
+    for attempt, backend in enumerate(DDGS_ATTEMPTS):
+        if attempt:
+            time.sleep(1.0)
+        try:
+            rows = DDGS(timeout=15).text(query, max_results=max_results, backend=backend) or []
+        except DDGSException as err:
+            last_error = str(err)
+            continue
+        except Exception as err:  # noqa: BLE001 - network errors from the engines' HTTP clients
+            last_error = f"{type(err).__name__}: {err}"
+            continue
+        results = [SearchResult(r.get("title", ""), r.get("href", ""), r.get("body", ""))
+                   for r in rows if r.get("href")]
+        if results:
+            return results
+    if "no results" in last_error.lower():
+        return []
+    raise SearchError(f"web search failed after {len(DDGS_ATTEMPTS)} attempts: {last_error}")
 
 
 def _tavily(query: str, max_results: int) -> list[SearchResult]:
@@ -91,5 +111,6 @@ def web_search(query: str, max_results: int = 5) -> list[SearchResult]:
     if hit is not None:
         return [SearchResult(**r) for r in hit]
     results = BACKENDS[backend](query, max_results)
-    cache.put(key, [r.as_dict() for r in results])
+    if results:
+        cache.put(key, [r.as_dict() for r in results])
     return results

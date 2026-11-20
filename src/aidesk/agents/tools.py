@@ -72,6 +72,8 @@ def run_tool(name: str, args: dict, registry: SourceRegistry, *, page_chars: int
             return {"error": str(err)}
         for r in results:
             registry.seen_urls.setdefault(r.url, r.title)
+        if not results:
+            return {"results": [], "note": "no results; try a shorter query with different keywords"}
         return {"results": [r.as_dict() for r in results]}
     if name == "fetch_url":
         url = str(args.get("url", "")).strip()

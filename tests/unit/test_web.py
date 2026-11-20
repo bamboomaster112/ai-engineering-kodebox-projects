@@ -64,3 +64,45 @@ def test_stream_emits_steps_then_done():
 
 def test_empty_question():
     assert list(web.stream("   "))[0]["event"] == "error"
+
+
+def test_ddgs_retries_other_engines(monkeypatch):
+    import ddgs
+    from ddgs.exceptions import DDGSException
+
+    from aidesk.web import search
+
+    calls = []
+
+    class FlakyDDGS:
+        def __init__(self, timeout=15):
+            pass
+
+        def text(self, query, max_results=5, backend="auto"):
+            calls.append(backend)
+            if backend == "auto":
+                raise DDGSException("No results found.")
+            return [{"title": "T", "href": "https://example.org/a", "body": "b"}]
+
+    monkeypatch.setattr(ddgs, "DDGS", FlakyDDGS)
+    monkeypatch.setattr(search.time, "sleep", lambda s: None)
+    out = search._ddgs("anything", 3)
+    assert [r.url for r in out] == ["https://example.org/a"] and calls == ["auto", "duckduckgo,brave,mojeek"]
+
+
+def test_ddgs_no_results_everywhere_is_empty_not_an_error(monkeypatch):
+    import ddgs
+    from ddgs.exceptions import DDGSException
+
+    from aidesk.web import search
+
+    class Empty:
+        def __init__(self, timeout=15):
+            pass
+
+        def text(self, *a, **k):
+            raise DDGSException("No results found.")
+
+    monkeypatch.setattr(ddgs, "DDGS", Empty)
+    monkeypatch.setattr(search.time, "sleep", lambda s: None)
+    assert search._ddgs("zzz", 3) == []

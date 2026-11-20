@@ -20,7 +20,7 @@ from langgraph.graph import END, START, StateGraph
 from aidesk.config import get_settings
 from aidesk.guardrails.checks import CANARY, check_input, check_output
 from aidesk.guardrails.patterns import redact_pii
-from aidesk.llm import BudgetExceeded, LLMError, get_gateway
+from aidesk.llm import BudgetExceeded, ContentBlocked, LLMError, get_gateway
 from aidesk.llm.budget import run_scope
 from aidesk.rag.retrieve import retrieve
 from aidesk.tickets import create_ticket
@@ -225,6 +225,9 @@ def ask(message: str, thread_id: str | None = None, *, token_cap: int = 12_000) 
     except BudgetExceeded as err:
         return {"thread_id": thread_id, "answer": f"Token budget reached: {err}.", "blocked": "budget",
                 "citations": [], "trace": [], "pii_masked": pii}
+    except ContentBlocked as err:
+        return {"thread_id": thread_id, "answer": BLOCKED_REPLY["injection"], "blocked": "injection",
+                "citations": [], "trace": [{"step": "gateway_block", "reason": str(err)[:200]}], "pii_masked": pii}
     except LLMError as err:
         return {"thread_id": thread_id, "answer": f"The model service failed: {err}", "blocked": "error",
                 "citations": [], "trace": [], "pii_masked": pii}

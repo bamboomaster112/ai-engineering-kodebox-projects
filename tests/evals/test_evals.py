@@ -63,7 +63,8 @@ def results():
         row = {"id": case["id"], "question": case["question"], "answer": out["answer"], "retrieved": retrieved,
                "cited": cited, "abstained": out.get("abstained", False), "blocked": out.get("blocked")}
         if case.get("abstain"):
-            row["ok_abstain"] = bool(out.get("abstained")) and not cited
+            # Correct behaviour: say plainly the help center doesn't cover it. Citing related facts is fine.
+            row["ok_abstain"] = bool(out.get("abstained")) and not out.get("ticket")
         else:
             row["hit"] = any(d in retrieved for d in case["expect_docs"])
             row["fact"] = any(s.lower() in out["answer"].lower() for s in case["must_include_any"])

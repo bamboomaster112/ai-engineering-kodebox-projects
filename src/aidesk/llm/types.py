@@ -53,3 +53,7 @@ class BudgetExceeded(RuntimeError):
 
 class LLMError(RuntimeError):
     """A model call failed after retries. The message is safe to show to a user."""
+
+
+class ContentBlocked(LLMError):
+    """The gateway's own content screening (KodeKey uses Model Armor) refused the request."""

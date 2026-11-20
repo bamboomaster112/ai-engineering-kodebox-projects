@@ -119,7 +119,7 @@ class FakeProvider:
         off_topic = bool(_words(text) & OFF_TOPIC_WORDS)
         words = _words(text)
         intent = "support"
-        if words & {"human", "person", "agent", "ticket", "refund", "escalate"}:
+        if words & {"human", "person", "agent", "ticket", "escalate"}:
             intent = "human"
         elif words & {"research", "compare", "comparison", "market", "landscape"}:
             intent = "research"

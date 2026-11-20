@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 import openai
 
-from aidesk.llm.types import LLMError
+from aidesk.llm.types import ContentBlocked, LLMError
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +67,8 @@ class OpenAICompatProvider:
                 resp = self.client.chat.completions.create(**self._adapt(request))
                 break
             except openai.BadRequestError as err:
+                if "content blocked" in str(err).lower():
+                    raise ContentBlocked(f"the KodeKey gateway blocked this content: {_short(err)}") from err
                 if self._learn(model, err):
                     continue
                 raise LLMError(f"{model} rejected the request: {_short(err)}") from err

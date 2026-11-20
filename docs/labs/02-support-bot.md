@@ -44,7 +44,8 @@ uv run aidesk ask "Please open a ticket, I need a human"
   LLM-judged faithfulness 0.8 and relevancy 0.8, correct abstention, and every probe handled.
 
 ## Results on the KodeBox (20 November 2026)
-Retrieval hit rate 1.00, expected facts 1.00, right article cited 1.00, faithfulness 1.00, relevancy 0.96,
+From a fresh clone with an empty cache: retrieval hit rate 1.00, expected facts 1.00, right article cited
+1.00, faithfulness 0.99, relevancy 0.96,
 both out-of-scope questions answered honestly, and 11 of 11 guardrail probes handled: five stopped by
 patterns, two by the classifier, one by KodeKey's Model Armor, and three benign or indirect cases answered
 safely. See the README for the issues this testing caught.

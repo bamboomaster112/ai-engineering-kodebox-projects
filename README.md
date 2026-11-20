@@ -85,22 +85,22 @@ Offline anywhere (laptop or CI): `uv sync && uv run pytest` uses the fake model 
 
 ## Results
 
-Validated on the KodeBox on 20 November 2026. `./run-all.sh` passed all 12 steps in 144 seconds
-(warm cache):
+Validated on the KodeBox on 20 November 2026 with the strictest setup: a **fresh clone and an empty
+cache**. `./run-all.sh` passed all 12 steps in 241 seconds (a warm re-run takes about 144 seconds):
 
 | Step | Result | Time |
 |---|---|---|
-| setup: locked environment | PASS | 0s |
-| offline tests (fake model): 75 tests | PASS | 16s |
+| setup: locked environment | PASS | 1s |
+| offline tests (fake model): 75 tests | PASS | 24s |
 | lint + security rules (ruff) | PASS | 0s |
 | static security scan (bandit) | PASS | 1s |
-| dependency audit (pip-audit): no known vulnerabilities | PASS | 1s |
+| dependency audit (pip-audit): no known vulnerabilities | PASS | 4s |
 | index knowledge base: 14 articles, 43 chunks | PASS | 1s |
-| live agents (KodeKey + web): playground, Ask-the-Web, Deep Research | PASS | 5s |
-| support evals (quality gate): 7 gates | PASS | 75s |
-| start services (tmux) | PASS | 7s |
-| publish /app/ via nginx | PASS | 1s |
-| end to end through nginx, MCP, A2A: 7 tests | PASS | 37s |
+| live agents (KodeKey + web): playground, Ask-the-Web, Deep Research | PASS | 56s |
+| support evals (quality gate): 7 gates | PASS | 95s |
+| start services (tmux) | PASS | 9s |
+| publish /app/ via nginx | PASS | 2s |
+| end to end through nginx, MCP, A2A: 7 tests | PASS | 48s |
 
 **Support bot quality gate** (14 golden questions, 11 guardrail probes; `tests/evals/`):
 
@@ -109,7 +109,7 @@ Validated on the KodeBox on 20 November 2026. `./run-all.sh` passed all 12 steps
 | Retrieval hit rate (expected article in the 4 passages) | 1.00 | 0.90 |
 | Expected fact in the answer | 1.00 | 0.80 |
 | Cites the right article | 1.00 | 0.90 |
-| Faithfulness (LLM judge) | 1.00 | 0.80 |
+| Faithfulness (LLM judge) | 0.99 | 0.80 |
 | Relevancy (LLM judge) | 0.96 | 0.80 |
 | Out-of-scope questions answered honestly | 2 of 2 | all |
 | Guardrail probes handled as expected | 11 of 11 | all |
@@ -134,9 +134,11 @@ both benign look-alikes ("ignore failures in a flaky test job", "my token was ex
 6. tmux services did not inherit the token caps from the calling shell, so the end-to-end run hit the default
    daily cap mid-way (the cap worked as designed). The start script now passes the caps explicitly.
 
-**Token use.** By AI Desk's own ledger, the whole build and validation (three full runs, two probes and the
-debugging in between) used about 200k KodeKey tokens on cold caches. A re-run of `run-all.sh` costs far
-less, because identical calls are served from the response cache.
+**Token use.** One cold run of `run-all.sh` from a fresh clone used about 110k tokens (input plus output) by
+AI Desk's ledger. Building and debugging before that (three full runs and two probes) used about 158k input
+and 43k output tokens, while the KodeKey dashboard's allowance went from 468,749 to 455,956, so KodeKey
+meters its allowance differently from raw token counts. A re-run of `run-all.sh` costs far less, because
+identical calls come from the cache.
 
 ## Design decisions
 

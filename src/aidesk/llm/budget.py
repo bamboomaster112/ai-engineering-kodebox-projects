@@ -27,7 +27,18 @@ def run_scope(cap: int | None = None, run_id: str | None = None):
     try:
         yield rid
     finally:
-        _current_run.reset(token)
+        try:
+            _current_run.reset(token)
+        except ValueError:  # exited from another context (for example a generator resumed elsewhere)
+            _current_run.set(None)
+
+
+def in_this_context(fn):
+    """Wrap fn so it runs with the caller's run scope when handed to a thread pool."""
+    import contextvars
+
+    ctx = contextvars.copy_context()
+    return lambda *a, **k: ctx.copy().run(fn, *a, **k)
 
 
 def current_run() -> tuple[str | None, int]:

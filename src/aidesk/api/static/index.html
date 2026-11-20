@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Desk</title>
+  <link rel="stylesheet" href="static/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">AI</span><div><h1>AI Desk</h1><p id="status">Connecting…</p></div></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="support" aria-selected="true">Support bot</button>
+      <button role="tab" data-tab="web">Ask the Web</button>
+      <button role="tab" data-tab="research">Deep Research</button>
+      <button role="tab" data-tab="playground">Playground</button>
+      <button role="tab" data-tab="usage">Usage</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-support" class="panel active">
+      <div class="split">
+        <div class="card chat">
+          <div class="card-head"><h2>Brightwave CI support</h2>
+            <button class="ghost" id="new-thread" type="button">New conversation</button></div>
+          <div id="chat-log" class="chat-log" aria-live="polite">
+            <div class="msg bot">Hi! I answer questions about Brightwave CI (a fictional CI/CD service) from its help center, with sources. Try “How long are artifacts kept?” or “What does exit code 137 mean?”</div>
+          </div>
+          <form id="chat-form" class="row">
+            <input id="chat-input" maxlength="2000" placeholder="Ask about builds, runners, billing, tokens…" autocomplete="off" required>
+            <button type="submit">Send</button>
+          </form>
+        </div>
+        <aside class="card side">
+          <div class="card-head"><h2>Open tickets</h2><button class="ghost" id="refresh-tickets" type="button">Refresh</button></div>
+          <ul id="tickets" class="tickets"><li class="muted">None yet</li></ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="tab-web" class="panel">
+      <div class="card">
+        <h2>Ask the Web</h2>
+        <p class="muted">An agent searches the web, reads the best pages and answers with citations. Page text is treated as untrusted data.</p>
+        <form id="web-form" class="row">
+          <input id="web-input" maxlength="600" minlength="3" placeholder="e.g. What changed in the latest MCP specification?" required>
+          <button type="submit">Ask</button>
+        </form>
+        <ol id="web-steps" class="steps"></ol>
+        <div id="web-answer" class="answer"></div>
+      </div>
+    </section>
+
+    <section id="tab-research" class="panel">
+      <div class="card">
+        <h2>Deep Research</h2>
+        <p class="muted">A planner splits your question, researcher agents work in parallel, a critic checks coverage and a writer produces a cited report. You approve the plan first.</p>
+        <form id="research-form" class="row">
+          <input id="research-input" maxlength="600" minlength="3" placeholder="e.g. How do teams evaluate RAG systems in production?" required>
+          <button type="submit">Make a plan</button>
+        </form>
+        <div id="plan-box" class="plan" hidden>
+          <label for="plan-text">Plan (one sub-question per line, up to four). Edit it, then run.</label>
+          <textarea id="plan-text" rows="5"></textarea>
+          <div class="row end"><button class="ghost" id="plan-reject" type="button">Cancel</button><button id="plan-run" type="button">Approve and run</button></div>
+        </div>
+        <ol id="research-steps" class="steps"></ol>
+        <article id="research-report" class="report"></article>
+      </div>
+    </section>
+
+    <section id="tab-playground" class="panel">
+      <div class="card">
+        <h2>LLM Playground</h2>
+        <p class="muted">Send one prompt to several models and compare replies, speed and tokens. Raise the temperature and runs to see sampling at work.</p>
+        <form id="pg-form" class="stack">
+          <fieldset><legend>Models</legend><div id="pg-models" class="chips"></div></fieldset>
+          <label for="pg-system">System prompt (optional)</label>
+          <input id="pg-system" maxlength="2000" placeholder="You are a concise assistant.">
+          <label for="pg-prompt">Prompt</label>
+          <textarea id="pg-prompt" rows="4" maxlength="4000" required>Explain continuous integration to a new developer in two sentences.</textarea>
+          <div class="controls">
+            <label>Temperature <output id="pg-temp-out">0.7</output><input id="pg-temp" type="range" min="0" max="1.5" step="0.1" value="0.7"></label>
+            <label>Max tokens <input id="pg-max" type="number" min="16" max="1000" value="250"></label>
+            <label>Runs per model <select id="pg-runs"><option>1</option><option>2</option><option>3</option></select></label>
+            <button type="submit">Compare</button>
+          </div>
+        </form>
+        <div id="pg-summary" class="muted"></div>
+        <div id="pg-results" class="grid"></div>
+      </div>
+    </section>
+
+    <section id="tab-usage" class="panel">
+      <div class="card">
+        <div class="card-head"><h2>Token usage today</h2><button class="ghost" id="refresh-usage" type="button">Refresh</button></div>
+        <p id="usage-total" class="big"></p>
+        <table class="table"><thead><tr><th>Model</th><th>Purpose</th><th>Calls</th><th>Cached</th><th>Tokens</th></tr></thead><tbody id="usage-rows"></tbody></table>
+        <h3>System</h3>
+        <pre id="health" class="pre"></pre>
+      </div>
+    </section>
+  </main>
+  <script src="static/app.js"></script>
+</body>
+</html>

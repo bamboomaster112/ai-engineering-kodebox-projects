@@ -17,7 +17,7 @@ import numpy as np
 
 from aidesk.guardrails.patterns import injection_hits
 
-_TAG = r"<{tag}(?P<attrs>[^>]*)>(?P<body>.*?)</{tag}>"
+_TAG = r"<{tag}(?P<attrs>\s[^>]*)?>(?P<body>.*?)</{tag}>"
 _WORD = re.compile(r"[a-z0-9]+")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 OFF_TOPIC_WORDS = {"weather", "recipe", "poem", "horoscope", "football", "lottery", "song"}
@@ -26,7 +26,7 @@ OFF_TOPIC_WORDS = {"weather", "recipe", "poem", "horoscope", "football", "lotter
 def _tags(text: str, tag: str) -> list[tuple[dict[str, str], str]]:
     out = []
     for m in re.finditer(_TAG.format(tag=tag), text, flags=re.S):
-        attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group("attrs")))
+        attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group("attrs") or ""))
         out.append((attrs, m.group("body").strip()))
     return out
 
@@ -45,6 +45,12 @@ def _first_sentence(text: str) -> str:
 
 def _words(text: str) -> set[str]:
     return set(_WORD.findall(text.lower()))
+
+
+def _content_words(text: str) -> set[str]:
+    from aidesk.rag.store import STOPWORDS
+
+    return {w.rstrip("s") for w in _words(text) if w not in STOPWORDS and len(w) > 2}
 
 
 def _all_text(messages: list[dict[str, Any]]) -> str:
@@ -111,26 +117,38 @@ class FakeProvider:
         text = _first(_all_text(messages), "user_input") or _last_user(messages)
         hits = injection_hits(text)
         off_topic = bool(_words(text) & OFF_TOPIC_WORDS)
+        words = _words(text)
+        intent = "support"
+        if words & {"human", "person", "agent", "ticket", "refund", "escalate"}:
+            intent = "human"
+        elif words & {"research", "compare", "comparison", "market", "landscape"}:
+            intent = "research"
         return json.dumps(
             {
                 "injection": bool(hits),
                 "off_topic": off_topic,
+                "intent": intent,
                 "reason": ("matched: " + ", ".join(hits)) if hits else ("off topic" if off_topic else "ok"),
             }
         )
+
+    def _p_expand(self, messages, request) -> str:
+        question = _first(_all_text(messages), "question") or _last_user(messages)
+        keywords = [w for w in _WORD.findall(question.lower()) if len(w) > 3][:6]
+        return json.dumps({"queries": [" ".join(keywords)] if keywords else []})
 
     def _p_condense(self, messages, request) -> str:
         return _first(_all_text(messages), "follow_up") or _last_user(messages)
 
     def _p_rerank(self, messages, request) -> str:
         text = _all_text(messages)
-        query = _words(_first(text, "query"))
+        query = _content_words(_first(text, "query"))
         scored = []
-        for attrs, body in _tags(text, "candidate"):
-            overlap = len(query & _words(body))
-            scored.append((-overlap, attrs.get("id", "")))
+        for pos, (attrs, body) in enumerate(_tags(text, "candidate")):
+            overlap = len(query & _content_words(body))
+            scored.append((-overlap, pos, attrs.get("id", "")))
         scored.sort()
-        return json.dumps({"ranking": [cid for _, cid in scored]})
+        return json.dumps({"ranking": [cid for _, _, cid in scored]})
 
     def _p_answer(self, messages, request) -> str:
         sources = _tags(_all_text(messages), "source")

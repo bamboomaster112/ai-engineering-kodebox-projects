@@ -21,12 +21,14 @@ class ResponseCache:
         self.db_path = db_path
         self.enabled = enabled
 
-    def get(self, key: str) -> Any | None:
+    def get(self, key: str, max_age: float | None = None) -> Any | None:
         if not self.enabled:
             return None
         with connect(self.db_path) as conn:
-            row = conn.execute("SELECT response FROM llm_cache WHERE key = ?", (key,)).fetchone()
-        return json.loads(row[0]) if row else None
+            row = conn.execute("SELECT response, created FROM llm_cache WHERE key = ?", (key,)).fetchone()
+        if not row or (max_age is not None and time.time() - row[1] > max_age):
+            return None
+        return json.loads(row[0])
 
     def put(self, key: str, value: Any) -> None:
         if not self.enabled:

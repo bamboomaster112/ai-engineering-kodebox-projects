@@ -1,27 +1,30 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from aidesk import db
 from aidesk.config import reset_settings
 from aidesk.llm.gateway import reset_gateway
 
-LIVE = os.environ.get("AIDESK_LIVE") == "1"
-
 
 @pytest.fixture(autouse=True)
-def offline_env(tmp_path, monkeypatch, request):
-    """Every test gets its own data folder. Offline tests use the fake model; live tests keep KodeKey."""
-    monkeypatch.setenv("AIDESK_DATA_DIR", str(tmp_path / "var"))
-    if "live" not in request.keywords:
+def isolated_env(tmp_path, monkeypatch, request):
+    """Offline tests: fake model, fixture web, and a fresh data folder per test.
+
+    Live and e2e tests keep the real settings and the shared var/ folder, so the response cache
+    makes re-runs nearly free.
+    """
+    offline = not ({"live", "e2e"} & set(request.keywords))
+    if offline:
+        monkeypatch.setenv("AIDESK_DATA_DIR", str(tmp_path / "var"))
         monkeypatch.setenv("AIDESK_PROVIDER", "fake")
         monkeypatch.setenv("AIDESK_SEARCH", "fixture")
-    db.forget_initialised()
-    reset_settings()
-    reset_gateway()
+        monkeypatch.delenv("AIDESK_A2A_URL", raising=False)
+        db.forget_initialised()
+        reset_settings()
+        reset_gateway()
     yield
-    reset_settings()
-    reset_gateway()
-    db.forget_initialised()
+    if offline:
+        reset_settings()
+        reset_gateway()
+        db.forget_initialised()

@@ -34,6 +34,8 @@ class Settings:
     api_key: str = field(repr=False)
     models: dict[str, str]
     embed_dimensions: int
+    embed_mode: str
+    playground_models: list[str]
     probe_models: list[str]
     data_dir: Path
     cache_enabled: bool
@@ -86,6 +88,8 @@ def get_settings() -> Settings:
         api_key=api_key,
         models=models,
         embed_dimensions=int(raw.get("embeddings", {}).get("dimensions", 512)),
+        embed_mode=os.environ.get("AIDESK_EMBEDDINGS", raw.get("embeddings", {}).get("mode", "auto")).strip().lower(),
+        playground_models=list(raw.get("playground", {}).get("models", [])),
         probe_models=list(raw.get("probe", {}).get("chat", [])),
         data_dir=data_dir,
         cache_enabled=os.environ.get("AIDESK_CACHE", "1").strip() != "0",

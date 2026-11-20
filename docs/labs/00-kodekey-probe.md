@@ -41,6 +41,13 @@ It prints a table and writes `reports/kodekey-probe.json`.
   FTS5 BM25) plus LLM query expansion and LLM reranking. The vector path switches on automatically if the
   key ever gains an embeddings model (`[embeddings] mode = "auto"`).
 
+## A second probe: hidden thinking
+`uv run python setup/probe_thinking.py --hard` showed that the Claude 5.5 models on KodeKey can think before
+answering, that the thinking text is not returned, and that request options such as
+`thinking: {type: disabled}` or `reasoning_effort` make no visible difference through the gateway. Because
+thinking counts against `max_tokens`, AI Desk uses generous ceilings (you pay only for tokens used) and the
+gateway retries a reply that was cut off before any text.
+
 ## Exercise
 Add two more models to `[probe] chat` and compare their latency. Then point the `fast` role at the quickest
 one with `AIDESK_MODEL_FAST=...` and re-run the support evals to see whether quality holds.

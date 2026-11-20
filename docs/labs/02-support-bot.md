@@ -17,7 +17,8 @@ guard_in ─┬─ blocked ─────────────────�
 ```
 - **guard_in**: masks emails, phone numbers, card numbers and API tokens before anything reaches a model
   or the conversation store; blocks obvious injection with patterns (no tokens spent); otherwise one
-  fast-model call classifies injection, off-topic and intent together.
+  fast-model call classifies injection, off-topic and intent together. KodeKey screens requests too: when
+  its Model Armor answers "400 Content blocked", the guard counts that as a block (method `gateway`).
 - **condense**: rewrites a follow-up into a standalone question using the conversation history.
 - **retrieve** (`src/aidesk/rag/retrieve.py`): the question plus up to three LLM-written rewrites are
   searched with SQLite FTS5 (BM25), results are merged with reciprocal rank fusion, and the fast model
@@ -41,6 +42,12 @@ uv run aidesk ask "Please open a ticket, I need a human"
 - Live quality gate: `uv run pytest -m live tests/evals -s` runs 14 golden questions and 11 attack and
   benign probes. Thresholds: retrieval hit rate 0.9, expected facts 0.8, cites the right article 0.9,
   LLM-judged faithfulness 0.8 and relevancy 0.8, correct abstention, and every probe handled.
+
+## Results on the KodeBox (20 November 2026)
+Retrieval hit rate 1.00, expected facts 1.00, right article cited 1.00, faithfulness 1.00, relevancy 0.96,
+both out-of-scope questions answered honestly, and 11 of 11 guardrail probes handled: five stopped by
+patterns, two by the classifier, one by KodeKey's Model Armor, and three benign or indirect cases answered
+safely. See the README for the issues this testing caught.
 
 ## LoRA/PEFT (not on this box)
 Fine-tuning the answer model's tone with LoRA needs a GPU. It is planned for the GPU KodeBox once its

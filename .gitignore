@@ -1,0 +1,23 @@
+# secrets: never commit these
+.env
+*.env
+!.env.example
+*-credentials.txt
+.htpasswd
+
+# runtime state
+var/
+*.db
+*.db-wal
+*.db-shm
+reports/live/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/

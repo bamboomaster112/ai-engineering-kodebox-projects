@@ -1,0 +1,32 @@
+# Which KodeKey model plays which role in AI Desk.
+# Override any role with an environment variable, for example AIDESK_MODEL_MAIN=...
+# setup/probe_kodekey.py checks which of these your key can actually call.
+
+[roles]
+fast = "claude-haiku-4-5-20251001"      # guardrail checks, query rewrite, reranking
+main = "claude-sonnet-5-5"              # answers and agent tool use
+reasoning = "claude-opus-5-5"           # Deep Research planning and report writing
+judge = "claude-haiku-4-5-20251001"     # LLM-as-judge in evals
+embed = "text-embedding-3-large"
+image = "openai/gpt-5-image-mini"
+
+[embeddings]
+dimensions = 512
+
+[probe]
+# Chat models the probe tries with a tiny request (a few tokens each).
+chat = [
+  "claude-haiku-4-5-20251001",
+  "claude-haiku-5-5",
+  "claude-sonnet-5-5",
+  "claude-opus-5-5",
+  "claude-fable-5-2",
+  "kodekloud/claude-haiku",
+  "kodekloud/claude-sonnet",
+  "gpt-5-mini",
+  "gpt-5.4-mini",
+  "gpt-4.1",
+  "google/gemini-3.5-flash",
+  "qwen/qwen3.8-flash",
+  "deepseek/deepseek-v4-flash",
+]

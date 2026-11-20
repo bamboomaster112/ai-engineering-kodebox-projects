@@ -63,7 +63,7 @@ def agent(state: WebState) -> dict:
         messages,
         role="main",
         temperature=0.2,
-        max_tokens=700,
+        max_tokens=1500,
         tools=None if out_of_rounds else WEB_TOOLS,
         purpose="agent",
     )

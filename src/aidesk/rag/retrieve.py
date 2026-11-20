@@ -52,7 +52,7 @@ def expand_query(question: str) -> list[str]:
             Expansions,
             role="fast",
             purpose="expand",
-            max_tokens=200,
+            max_tokens=800,
         )
         return [q for q in out.queries if q.strip()][:3]
     except LLMError:
@@ -96,7 +96,7 @@ def rerank(question: str, hits: list[Hit], top_k: int) -> tuple[list[Hit], bool]
             Ranking,
             role="fast",
             purpose="rerank",
-            max_tokens=300,
+            max_tokens=1000,
         )
     except LLMError:
         return hits[:top_k], False

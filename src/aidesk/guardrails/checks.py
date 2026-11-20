@@ -70,7 +70,7 @@ def check_input(text: str, *, use_llm: bool = True) -> InputCheck:
             InputVerdict,
             role="fast",
             purpose="guard",
-            max_tokens=150,
+            max_tokens=800,
         )
     except LLMError as err:
         # Fail closed on injection risk would block everyone during an outage; pattern checks already ran.

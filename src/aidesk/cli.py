@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("research", help="run Deep Research with the plan auto-approved")
     r.add_argument("question")
     sub.add_parser("usage", help="token usage today")
+    sub.add_parser("cache-clean", help="drop cached replies that were cut off or empty")
     t = sub.add_parser("traces", help="recent trace spans")
     t.add_argument("--last", type=int, default=20)
     args = p.parse_args(argv)
@@ -77,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
         from aidesk.llm import get_gateway
 
         _print(get_gateway().ledger.summary())
+    elif args.cmd == "cache-clean":
+        from aidesk.config import get_settings
+        from aidesk.llm.cache import purge_bad_entries
+
+        print(f"removed {purge_bad_entries(get_settings().db_path)} cached replies")
     elif args.cmd == "traces":
         from aidesk.observability import recent_traces
 

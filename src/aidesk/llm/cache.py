@@ -38,3 +38,17 @@ class ResponseCache:
                 "INSERT OR REPLACE INTO llm_cache (key, response, created) VALUES (?, ?, ?)",
                 (key, json.dumps(value, ensure_ascii=False), time.time()),
             )
+
+
+def purge_bad_entries(db_path: Path) -> int:
+    """Delete cached chat replies that were cut off or empty (saved by older versions). Returns how many."""
+    removed = 0
+    with connect(db_path) as conn:
+        for key, raw in conn.execute("SELECT key, response FROM llm_cache WHERE key LIKE 'chat:%'").fetchall():
+            value = json.loads(raw)
+            message = value.get("message", {}) if isinstance(value, dict) else {}
+            empty = not ((message.get("content") or "").strip() or message.get("tool_calls"))
+            if isinstance(value, dict) and (value.get("finish_reason") == "length" or empty):
+                conn.execute("DELETE FROM llm_cache WHERE key = ?", (key,))
+                removed += 1
+    return removed

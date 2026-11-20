@@ -44,6 +44,23 @@ def _parse_tool_calls(message: dict[str, Any]) -> list[ToolCall]:
     return calls
 
 
+MAX_RETRY_TOKENS = 8000
+
+
+def _truncated_empty(response: dict[str, Any]) -> bool:
+    message = response.get("message", {})
+    return response.get("finish_reason") == "length" and not (message.get("content") or "").strip() \
+        and not message.get("tool_calls")
+
+
+def _cacheable(response: dict[str, Any]) -> bool:
+    """Never cache a reply that was cut off or came back empty, or a re-run would replay the failure."""
+    message = response.get("message", {})
+    if response.get("finish_reason") == "length":
+        return False
+    return bool((message.get("content") or "").strip() or message.get("tool_calls"))
+
+
 def extract_json(text: str) -> Any:
     """Pull the first JSON object or array out of a model reply (models sometimes add prose or fences)."""
     text = text.strip()
@@ -127,22 +144,23 @@ class Gateway:
             hit = self.cache.get(key) if use_cache else None
             if hit is not None:
                 response, cached = hit, True
+                usage = Usage(**response.get("usage", {}))
             else:
                 self.ledger.check(_estimate_tokens(request), self.provider_name, run_id, scope_cap)
                 response, cached = self.provider.complete(request, purpose), False
-                if use_cache:
+                usage = Usage(**response.get("usage", {}))
+                if _truncated_empty(response) and request["max_tokens"] < MAX_RETRY_TOKENS:
+                    # Some models think before answering, and hidden thinking counts against max_tokens.
+                    # A reply cut off before any text gets one retry with a larger budget.
+                    self._record(model, purpose, usage, False, started, run_id)
+                    request = {**request, "max_tokens": min(request["max_tokens"] * 3, MAX_RETRY_TOKENS)}
+                    span.set_attribute("llm.retried_after_truncation", True)
+                    response = self.provider.complete(request, purpose)
+                    usage = Usage(**response.get("usage", {}))
+                if use_cache and _cacheable(response):
                     self.cache.put(key, response)
             latency_ms = int((time.perf_counter() - started) * 1000)
-            usage = Usage(**response.get("usage", {}))
-            self.ledger.record(
-                model=model,
-                purpose=purpose,
-                usage=usage,
-                cached=cached,
-                latency_ms=latency_ms,
-                provider=self.provider_name,
-                run_id=run_id,
-            )
+            self._record(model, purpose, usage, cached, started, run_id)
             span.set_attribute("llm.cached", cached)
             span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
             span.set_attribute("llm.completion_tokens", usage.completion_tokens)
@@ -196,6 +214,17 @@ class Gateway:
             run_id=run_id,
         )
 
+    def _record(self, model: str, purpose: str, usage: Usage, cached: bool, started: float, run_id: str | None) -> None:
+        self.ledger.record(
+            model=model,
+            purpose=purpose,
+            usage=usage,
+            cached=cached,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            provider=self.provider_name,
+            run_id=run_id,
+        )
+
     # ---- structured output -----------------------------------------------------------------
 
     def structured(
@@ -205,7 +234,7 @@ class Gateway:
         *,
         role: str = "fast",
         purpose: str = "structured",
-        max_tokens: int = 600,
+        max_tokens: int = 1500,
         run_id: str | None = None,
     ) -> T:
         """Ask for JSON matching a Pydantic model, validate it, and repair once if needed.

@@ -106,3 +106,48 @@ def test_stream_records_usage():
     text = "".join(gw.stream([{"role": "user", "content": "say something"}], purpose="probe"))
     assert text == "pong"
     assert gw.ledger.summary()["tokens"] >= 0
+
+
+class TruncatingProvider(ScriptedProvider):
+    """First reply is cut off before any text (hidden thinking used the budget), then a real one."""
+
+    def complete(self, request, purpose):
+        self.calls += 1
+        self.seen_max_tokens = getattr(self, "seen_max_tokens", []) + [request["max_tokens"]]
+        if self.calls == 1:
+            return {"model": request["model"], "message": {"role": "assistant", "content": ""},
+                    "finish_reason": "length", "usage": {"prompt_tokens": 10, "completion_tokens": request["max_tokens"]}}
+        return {"model": request["model"], "message": {"role": "assistant", "content": "done"},
+                "finish_reason": "stop", "usage": {"prompt_tokens": 10, "completion_tokens": 3}}
+
+
+def test_truncated_empty_reply_is_retried_with_a_bigger_budget():
+    provider = TruncatingProvider([])
+    gw = Gateway(provider=provider)
+    r = gw.chat([{"role": "user", "content": "grade this"}], max_tokens=200, purpose="t")
+    assert r.text == "done" and provider.seen_max_tokens == [200, 600]
+    rows = gw.ledger.summary()["by_model_and_purpose"]
+    assert rows[0]["calls"] == 2  # both attempts are booked
+
+
+def test_cut_off_replies_are_not_cached(tmp_path):
+    class AlwaysCut(ScriptedProvider):
+        def complete(self, request, purpose):
+            self.calls += 1
+            return {"model": request["model"], "message": {"role": "assistant", "content": "partial"},
+                    "finish_reason": "length", "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+
+    provider = AlwaysCut([])
+    gw = Gateway(provider=provider)
+    gw.chat([{"role": "user", "content": "x"}], purpose="t")
+    gw.chat([{"role": "user", "content": "x"}], purpose="t")
+    assert provider.calls == 2
+
+
+def test_purge_bad_entries():
+    from aidesk.llm.cache import cache_key, purge_bad_entries
+
+    gw = Gateway()
+    gw.cache.put(cache_key("chat:x", {"a": 1}), {"message": {"content": ""}, "finish_reason": "length"})
+    gw.cache.put(cache_key("chat:x", {"a": 2}), {"message": {"content": "fine"}, "finish_reason": "stop"})
+    assert purge_bad_entries(gw.settings.db_path) == 1

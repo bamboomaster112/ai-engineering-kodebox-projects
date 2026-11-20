@@ -34,7 +34,7 @@ class Judgement(BaseModel):
 
 
 def judge(question: str, answer: str, sources: list[dict]) -> Judgement:
-    src = "\n".join(f'<source id="{i}">{html.escape(s["text"])}</source>' for i, s in enumerate(sources, 1))
+    src = "\n".join(f'<source id="{i}">{html.escape(s["text"][:900])}</source>' for i, s in enumerate(sources, 1))
     return get_gateway().structured(
         [{"role": "user", "content":
           "Grade a customer-support answer.\n"
@@ -42,7 +42,7 @@ def judge(question: str, answer: str, sources: list[dict]) -> Judgement:
           "relevancy: how directly and completely it answers the question (1.0 = fully).\n"
           f"<question>{html.escape(question)}</question>\n<sources>\n{src}\n</sources>\n"
           f"<answer>{html.escape(answer)}</answer>"}],
-        Judgement, role="judge", purpose="judge", max_tokens=250)
+        Judgement, role="judge", purpose="judge", max_tokens=1500)
 
 
 def load(name: str) -> list[dict]:

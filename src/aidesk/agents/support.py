@@ -101,7 +101,7 @@ def condense(state: SupportState) -> dict:
             {"role": "user", "content": f"<conversation>{html.escape(transcript)}</conversation>\n"
              f"<follow_up>{html.escape(question)}</follow_up>"},
         ],
-        role="fast", temperature=0, max_tokens=120, purpose="condense",
+        role="fast", temperature=0, max_tokens=600, purpose="condense",
     )
     standalone = result.text.strip() or question
     return {"standalone": standalone,
@@ -128,7 +128,7 @@ def answer_node(state: SupportState) -> dict:
             {"role": "user", "content": f"<sources>\n{sources}\n</sources>\n"
              f"<question>{html.escape(state['standalone'])}</question>"},
         ],
-        role="main", temperature=0.1, max_tokens=500, purpose="answer",
+        role="main", temperature=0.1, max_tokens=1200, purpose="answer",
     )
     step = {"step": "answer", "model": result.model, "tokens": result.usage.total, "cached": result.cached}
     return {"answer": result.text.strip(), "trace": [*state["trace"], step]}

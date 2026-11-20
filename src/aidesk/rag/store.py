@@ -12,7 +12,7 @@ import numpy as np
 
 from aidesk.config import get_settings
 from aidesk.db import connect
-from aidesk.llm import LLMError, get_gateway
+from aidesk.llm import BudgetExceeded, LLMError, get_gateway
 from aidesk.rag.chunking import Chunk, chunk_document, load_documents
 
 _WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -63,7 +63,8 @@ def ingest(kb_dir: Path | None = None, *, embed: str | None = None) -> dict:
         try:
             vectors = get_gateway().embed([f"{c.title}. {c.section}. {c.text}" for c in chunks], purpose="ingest")
             dense_note = "on"
-        except LLMError as err:
+        except (LLMError, BudgetExceeded) as err:
+            # Vectors are optional: keyword search still works without them.
             if mode == "on":
                 raise
             dense_note = f"unavailable ({str(err)[:120]})"

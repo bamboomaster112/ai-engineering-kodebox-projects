@@ -10,8 +10,9 @@ BIN="$REPO/.venv/bin/aidesk"
 
 # tmux sessions don't inherit this shell's variables, so pass the token caps explicitly.
 CAPS="AIDESK_DAILY_TOKEN_CAP=${AIDESK_DAILY_TOKEN_CAP:-150000} AIDESK_RUN_TOKEN_CAP=${AIDESK_RUN_TOKEN_CAP:-40000}"
+# Index first (before stopping anything), so a failure here never leaves you with no services.
+env $CAPS "$BIN" ingest >/dev/null || echo "warning: indexing failed; the previous index is kept"
 tmux kill-session -t aidesk 2>/dev/null || true
-"$BIN" ingest >/dev/null
 tmux new-session -d -s aidesk -n api "env $CAPS AIDESK_A2A_URL=http://127.0.0.1:8002 $BIN serve --port 8000 2>&1 | tee -a $REPO/var/api.log"
 tmux new-window -t aidesk -n mcp "env $CAPS $BIN mcp --http --port 8001 2>&1 | tee -a $REPO/var/mcp.log"
 tmux new-window -t aidesk -n a2a "env $CAPS $BIN a2a --port 8002 2>&1 | tee -a $REPO/var/a2a.log"

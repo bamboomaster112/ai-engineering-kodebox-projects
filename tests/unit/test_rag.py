@@ -80,3 +80,15 @@ def test_get_article():
     assert art and art["title"].startswith("Personal access tokens")
     assert any(s["section"] == "Rotating a token" for s in art["sections"])
     assert get_article("nope") is None
+
+
+def test_ingest_falls_back_when_the_budget_is_spent(monkeypatch):
+    from aidesk.llm import BudgetExceeded
+    from aidesk.llm.gateway import Gateway
+
+    def spent(self, *a, **k):
+        raise BudgetExceeded("today's cap is reached")
+
+    monkeypatch.setattr(Gateway, "embed", spent)
+    meta = ingest()
+    assert meta["dense"] is False and meta["chunks"] > 0
